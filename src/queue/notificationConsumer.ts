@@ -14,7 +14,6 @@ export async function startNotificationConsumer(channel: Channel): Promise<void>
 
   await channel.consume(QUEUES.MAIN, async (msg: ConsumeMessage | null) => {
     if (msg === null) {
-      // Broker cancelled the consumer (e.g. queue deleted) — not a message error
       console.warn('[consumer] Consumer cancelled by broker');
       return;
     }
@@ -31,7 +30,7 @@ export async function startNotificationConsumer(channel: Channel): Promise<void>
       return;
     }
 
-    // Step 2: Validate schema — schema violations are unretriable, ACK and discard
+    // Step 2: Validate schema — violations are unretriable, ACK and discard
     const parseResult = NotificationPayloadSchema.safeParse(rawPayload);
     if (!parseResult.success) {
       console.error('[consumer] DTO validation failed — discarding:', formatZodError(parseResult.error));
@@ -41,31 +40,29 @@ export async function startNotificationConsumer(channel: Channel): Promise<void>
 
     const payload = parseResult.data;
     console.log(
-      `[consumer] Processing notificationId=${payload.notificationId} for ${payload.recipients.length} recipient(s)`
+      `[consumer] Processing type=${payload.type} for ${payload.recipientUserIds.length} user(s), ${payload.recipientFcmTokens.length} token(s)`
     );
 
-    // Step 3: Persist to PostgreSQL (fan-out) — infrastructure errors go to DLQ
+    // Step 3: Persist to PostgreSQL — infrastructure errors go to DLQ
     try {
       await persistFanOut(payload);
     } catch (err) {
-      console.error(`[consumer] DB error for notificationId=${payload.notificationId}:`, err);
-      // requeue=false: do NOT put back in the main queue directly — let DLX/DLQ handle retry
+      console.error(`[consumer] DB error for type=${payload.type}:`, err);
       channel.nack(msg, false, false);
       return;
     }
 
-    // Step 4: Send FCM push notifications — transient errors go to DLQ for retry
-    // Note: DB insert is idempotent (ON CONFLICT DO NOTHING), so a retry is safe
+    // Step 4: Send FCM push notifications — transient errors go to DLQ
+    // DB insert is idempotent so a retry from DLQ is safe
     try {
       await sendToRecipients(payload);
     } catch (err) {
-      console.error(`[consumer] FCM error for notificationId=${payload.notificationId}:`, err);
+      console.error(`[consumer] FCM error for type=${payload.type}:`, err);
       channel.nack(msg, false, false);
       return;
     }
 
-    // Step 5: All done — ACK
     channel.ack(msg);
-    console.log(`[consumer] notificationId=${payload.notificationId} processed successfully`);
+    console.log(`[consumer] type=${payload.type} processed successfully`);
   });
 }

@@ -90,29 +90,31 @@ Para publicar un mensaje de prueba desde la UI de administración de RabbitMQ (`
 
 ## Formato del mensaje
 
+El productor debe publicar con `Buffer.from(JSON.stringify(payload))` — el worker espera JSON.
+
 ```json
 {
-  "notificationId": "a3b9d2e1-c4f5-4a6b-8c7d-9e0f1a2b3c4d",
-  "title": "¡Nueva oferta recibida!",
-  "body": "Has recibido una oferta de $150 en tu publicación.",
-  "type": "OFFER_RECEIVED",
-  "route": "/offers/123",
-  "screenRoute": "/collection-details",
+  "recipientUserIds": ["uuid-usuario-1", "uuid-usuario-2"],
+  "recipientFcmTokens": ["fcm-token-1", "fcm-token-2"],
+  "title": "Nuevo residuo cerca de ti",
+  "body": "Se publicó Aluminio a 320m de tu local",
+  "type": "WASTE_NEARBY",
+  "screenRoute": "/post-detail",
   "metadata": {
-    "offerId": "7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e"
-  },
-  "recipients": [
-    {
-      "userId": "e4f5a6b7-c8d9-0e1f-2a3b-4c5d6e7f8a9b",
-      "userNotificationId": "f8a9b0c1-d2e3-4f5a-6b7c-8d9e0f1a2b3c",
-      "deviceTokens": [
-        "fcm_token_device1...",
-        "fcm_token_device2..."
-      ]
-    }
-  ]
+    "postId": "uuid-publicacion"
+  }
 }
 ```
+
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `recipientUserIds` | `string[]` (UUIDs) | Sí | Usuarios que recibirán la notificación en su historial |
+| `recipientFcmTokens` | `string[]` | Sí | Tokens FCM a los que se envía el push (puede ser vacío) |
+| `title` | `string` (max 150) | Sí | Título de la notificación |
+| `body` | `string` | Sí | Cuerpo del mensaje |
+| `type` | `string` (max 50) | Sí | Tipo de evento (ej. `WASTE_NEARBY`) |
+| `screenRoute` | `string` (max 150) | No | Ruta en la app Flutter que se abre al tocar la notificación |
+| `metadata` | `object` | No | Datos adicionales para la app (se serializa como JSON string en FCM) |
 
 ## Esquema de base de datos
 
