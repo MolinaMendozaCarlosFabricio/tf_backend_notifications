@@ -8,6 +8,8 @@ export async function persistFanOut(payload: NotificationPayloadDTO): Promise<vo
   // IDs generated here since the producer no longer sends them
   const notificationId = randomUUID();
 
+  console.log(`[persistFanOut] type=${payload.type} userIds=${JSON.stringify(payload.recipientUserIds)}`);
+
   try {
     await client.query('BEGIN');
 
@@ -27,18 +29,24 @@ export async function persistFanOut(payload: NotificationPayloadDTO): Promise<vo
     );
 
     for (const userId of payload.recipientUserIds) {
-      await client.query(
-        `INSERT INTO user_notifications (id, user_id, notification_id)
-         VALUES ($1, $2, $3)
-         ON CONFLICT ON CONSTRAINT unique_user_notification DO NOTHING`,
-        [randomUUID(), userId, notificationId]
-      );
+      try {
+        await client.query(
+          `INSERT INTO user_notifications (id, user_id, notification_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT ON CONSTRAINT unique_user_notification DO NOTHING`,
+          [randomUUID(), userId, notificationId],
+        );
+      } catch (err: any) {
+        if (err.code === '23503') {
+          console.warn(`[persistFanOut] user_id=${userId} no existe en users, omitiendo user_notifications row`);
+          continue;
+        }
+        throw err;
+      }
     }
 
     await client.query('COMMIT');
-    console.log(
-      `[notification.service] Fan-out committed: notificationId=${notificationId}, recipients=${payload.recipientUserIds.length}`
-    );
+    console.log(`[persistFanOut] Fan-out committed: notificationId=${notificationId}, recipients=${payload.recipientUserIds.length}`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
