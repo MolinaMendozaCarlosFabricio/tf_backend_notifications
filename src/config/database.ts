@@ -13,7 +13,7 @@ export const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-pool.on('connect', (client) => {
+pool.on('connect', () => {
   console.log('[db] Connected to PostgreSQL');
 });
 
