@@ -2,11 +2,19 @@ import { Pool } from 'pg';
 import { env } from './env';
 
 export const pool = new Pool({
-  connectionString: env.DATABASE_URL,
+  host: env.DB_HOST,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  port: env.DB_PORT,
   max: 5,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
   ssl: { rejectUnauthorized: false },
+});
+
+pool.on('connect', (client) => {
+  console.log('[db] Connected to PostgreSQL');
 });
 
 pool.on('error', (err) => {
