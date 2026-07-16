@@ -37,7 +37,7 @@ export async function sendToRecipients(payload: NotificationPayloadDTO): Promise
   const response = await messaging.sendEachForMulticast({
     tokens: payload.recipientFcmTokens,
     data,
-    android: { priority: 'high' },
+    android: { priority: 'high', ttl: 3600 },
     apns: {
       headers: {
         'apns-priority': '10',
