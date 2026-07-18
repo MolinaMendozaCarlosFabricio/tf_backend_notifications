@@ -28,9 +28,11 @@ const INVALID_TOKEN_CODES = new Set([
 
 export async function sendToRecipients(payload: NotificationPayloadDTO): Promise<void> {
   if (payload.recipientFcmTokens.length === 0) {
-    console.warn('[fcm.service] No FCM tokens provided — skipping send');
+    console.warn(`[fcm.service] type=${payload.type} No FCM tokens provided — skipping send`);
     return;
   }
+
+  console.log(`[fcm.service] type=${payload.type} metadata=${JSON.stringify(payload.metadata)} enviando a ${payload.recipientFcmTokens.length} token(s)`);
 
   const data = buildDataPayload(payload);
 
@@ -61,6 +63,7 @@ export async function sendToRecipients(payload: NotificationPayloadDTO): Promise
       console.warn(`[fcm.service] Invalid/expired token: ${token} (${code})`);
       invalidTokens.push(token);
     } else {
+      console.error(`[fcm.service] Transient FCM error on token ${token}: ${code}`, resp.error);
       throw new Error(
         `[fcm.service] Transient FCM error on token ${token}: ${code} — ${resp.error?.message ?? ''}`
       );
@@ -72,6 +75,6 @@ export async function sendToRecipients(payload: NotificationPayloadDTO): Promise
   }
 
   console.log(
-    `[fcm.service] Sent to ${response.successCount}/${payload.recipientFcmTokens.length} tokens`
+    `[fcm.service] type=${payload.type} Sent to ${response.successCount}/${payload.recipientFcmTokens.length} tokens`
   );
 }

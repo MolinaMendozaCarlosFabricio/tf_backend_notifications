@@ -19,6 +19,7 @@ export async function startNotificationConsumer(channel: Channel): Promise<void>
     }
 
     const rawContent = msg.content.toString();
+    console.log(`[consumer] Mensaje recibido: ${rawContent.slice(0, 150)}`);
 
     // Step 1: Parse JSON — malformed JSON is unretriable, ACK and discard
     let rawPayload: unknown;
@@ -40,8 +41,11 @@ export async function startNotificationConsumer(channel: Channel): Promise<void>
 
     const payload = parseResult.data;
     console.log(
-      `[consumer] Processing type=${payload.type} for ${payload.recipientUserIds.length} user(s), ${payload.recipientFcmTokens.length} token(s)`
+      `[consumer] Processing type=${payload.type} metadata=${JSON.stringify(payload.metadata)} for ${payload.recipientUserIds.length} user(s), ${payload.recipientFcmTokens.length} token(s)`
     );
+    if (payload.recipientFcmTokens.length === 0) {
+      console.warn(`[consumer] type=${payload.type} sin recipientFcmTokens — no se enviará push, solo se persistirá`);
+    }
 
     // Step 3: Persist to PostgreSQL — infrastructure errors go to DLQ
     try {
